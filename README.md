@@ -38,3 +38,5 @@ Finnaly, to need to update the object sposition by moving it in the direction of
 
 ## Notes
 All the above info is very brief so you should look at the comments in the code for more info.
+This sad excuse for documentation is not that great, so if an one sees this, and anyone has any 
+questions than email me at befbrain@gmail.com.
