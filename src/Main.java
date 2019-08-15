@@ -1,5 +1,6 @@
 import processing.core.PApplet; // Import processing stuff
 import java.util.ArrayList; // Import the ArrayList class
+import java.util.Scanner;  // Import the Scanner class
 
 // Programs main class
 public class Main extends PApplet {
@@ -7,16 +8,25 @@ public class Main extends PApplet {
     // Create the ArrayList that will store all the objects
     public ArrayList<Object> objs = new ArrayList<Object>(); // Array of all the objects in the "universe".
 
-    public double accuracy = 1000; // The accuracy of the simulation. Every move will be multiplied 1/accuracy increase the correctness of the simulation
+    public double accuracy = 10000; // The accuracy of the simulation. Every move will be multiplied 1/accuracy increase the correctness of the simulation
     public double size_factor = 1; // What to multiply the diameter of the object by when being drawn. Has no effect on how the objects will work
-    public int frameRate = 120; // The simulation frame rate
-    public int maxMass = 100; // The maximum mass of the objects. Used when getting there color
+    public int frameRate = 240; // The simulation frame rate
+    public int maxMass = 1; // The maximum mass of the objects. Used when getting there color
+    public float scaleAmount = 1f;
+    public int changeAmount;
+    public int newObjMass;
 
     // A bunch of verbose variables for debugging
     public boolean showNextPos = false; // Show the next position of all the objects
     public boolean showObjInx = false; // Show the index of the objects
     public boolean showDist = false; // Show the distances between all the objects
-    public boolean showForce = false; // Show the force of the objects
+    public boolean showForce = true; // Show the force of the objects
+
+    public boolean askForChangeAmount = false;
+
+    public boolean simulationMode = true;
+    public int newObjIndx = -1;
+    public int newObjStep = -1;
 
     // Main method
     public static void main(String[] args) {
@@ -32,22 +42,89 @@ public class Main extends PApplet {
 
     // Setup the simulation
     public void setup() {
+
+        if(askForChangeAmount) {
+            Scanner myObj = new Scanner(System.in);  // Create a Scanner object
+
+            System.out.print("Enter Change Amount: ");
+            changeAmount = myObj.nextInt();  // Read user input
+        } else {
+            changeAmount = 1;
+        }
+
         // Set the frame rate
         frameRate(frameRate);
+    }
 
-        // Create the objects for the simulation
-        // the format of the objects parameters is as follows: mass, x position, y position, size, and initial force (A Vector)
-        objs.add(new Object(81, width/2, height/2, 20, new Vector(0, 0) ));
-        objs.add(new Object(1, width/2 + 238.9, height/2, 3, new Vector( 0, -900.3) ));
+    public void keyReleased() {
+        if (key == ' ') {
+            System.out.println("Pause / Resume");
+            simulationMode = !simulationMode;
+
+            if(simulationMode) {
+                objs.remove(newObjIndx);
+                newObjIndx = -1;
+                newObjStep = -1;
+            }
+        }
+    }
+
+    public void mouseClicked() {
+        if(!simulationMode) {
+            if(newObjStep == 1) {
+                newObjStep += 1;
+                objs.get(newObjIndx).size = 0;
+            } else if(newObjStep == 2) {
+                newObjStep += 1;
+                objs.get(newObjIndx).mass = 0;
+            } else if(newObjStep == 3) {
+                newObjStep += 1;
+            } else if(newObjStep == 4) {
+                objs.get(newObjIndx).force.x *= objs.get(newObjIndx).mass * 4;
+                objs.get(newObjIndx).force.y *= objs.get(newObjIndx).mass * 4;
+                objs.get(newObjIndx).shouldShow = true;
+                newObjStep = -1;
+                newObjIndx = -1;
+            }
+        }
     }
 
     public void draw() {
+
+        scale(scaleAmount);
+
         background(255); // Clear, and set the background to white
 
-        drawObjs(); // Draw the objects
+        if(simulationMode) {
+            drawObjs(); // Draw the objects
+            updateVel(); // Update the velocity of all the objects
+            updatePos(); // Update the position of the objects
+        } else {
+            drawObjs(); // Draw the objects
 
-        updateVel(); // Update the velocity of all the objects
-        updatePos(); // Update the position of the objects
+            if(newObjIndx == -1) {
+                objs.add(new Object((double) changeAmount / 2, 0, 0, 20, new Vector( 0, 0) ));
+                newObjIndx = objs.size() - 1;
+                newObjStep = 1;
+            }
+
+            if(newObjStep == 1) {
+                objs.get(newObjIndx).x = mouseX;
+                objs.get(newObjIndx).y = mouseY;
+            } else if(newObjStep == 2) {
+                objs.get(newObjIndx).size = getDist(objs.get(newObjIndx).x, objs.get(newObjIndx).y, mouseX, mouseY);
+            } else if(newObjStep == 3) {
+                objs.get(newObjIndx).mass = Math.ceil( (double) changeAmount / 400) * getDist(objs.get(newObjIndx).x, objs.get(newObjIndx).y, mouseX, mouseY);
+                addText(0, (float) objs.get(newObjIndx).x, (float) objs.get(newObjIndx).y, Double.toString(Math.round(objs.get(newObjIndx).mass * 100) / 100));
+            } else if(newObjStep == 4) {
+                objs.get(newObjIndx).force.x = (  mouseX - objs.get(newObjIndx).x );
+                objs.get(newObjIndx).force.y = (  mouseY - objs.get(newObjIndx).y );
+                stroke(getMassColorGrad(objs.get(newObjIndx).mass), 100);
+                line((float) objs.get(newObjIndx).x, (float) objs.get(newObjIndx).y, (float) (objs.get(newObjIndx).force.x + objs.get(newObjIndx).x), (float) ( objs.get(newObjIndx).force.y + objs.get(newObjIndx).y) );
+            }
+
+            drawObj(newObjIndx, 150);
+        }
     }
 
     private void drawObjs() {
@@ -55,13 +132,18 @@ public class Main extends PApplet {
         noStroke();
 
         for(int i = 0; i < objs.size(); i++) { // For every object
-            fill(getMassColorGrad(objs.get(i).mass)); // Set the fill color to the returned value of the getMassColorGrad (see below)
-            circle((float) objs.get(i).x, (float) objs.get(i).y, (float) objs.get(i).size); // Create a circle in the correct location with the correct size
+            if(objs.get(i).shouldShow)
+                drawObj(i, 255);
+        }
+    }
 
-            // Show the objects index for debugging
-            if(showObjInx) {
-                addText(0, (float) objs.get(i).x, (float) objs.get(i).y + 4, Integer.toString(i));
-            }
+    private void drawObj(int i, int alpha) {
+        fill(getMassColorGrad(objs.get(i).mass), alpha); // Set the fill color to the returned value of the getMassColorGrad (see below)
+        circle((float) objs.get(i).x, (float) objs.get(i).y, (float) ( objs.get(i).size * size_factor) ); // Create a circle in the correct location with the correct size
+
+        // Show the objects index for debugging
+        if(showObjInx) {
+            addText(0, (float) objs.get(i).x, (float) objs.get(i).y + 4, Integer.toString(i));
         }
     }
 
@@ -118,6 +200,8 @@ public class Main extends PApplet {
                     // Calculate the net force
                     double Fn = ( G * objs.get(a).mass * objs.get(b).mass / d );
 
+                    System.out.println(Fn);
+
                     // Variables that will be used to make up for the lost negatives in the distance equation
                     double x_mult = 1;
                     double y_mult = 1;
@@ -161,8 +245,16 @@ public class Main extends PApplet {
     }
 
     private int getMassColorGrad(double mass) {
+
+        updateMaxMass();
         // Use processings lerpColor function to get some color to represent the objects mass
         return lerpColor(color(0, 0, 255), color(255, 0, 0), (float) mass / maxMass);
+    }
+
+    private void updateMaxMass() {
+        for(int i = 0; i < objs.size(); i++) {
+            maxMass = (objs.get(i).mass > maxMass) ? (int) objs.get(i).mass : maxMass;
+        }
     }
 
     private void addText(float radians, float x, float y, String text) {
