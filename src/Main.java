@@ -21,7 +21,8 @@ public class Main extends PApplet {
     private boolean showObjInx = false; // Show the index of the objects
     private boolean showDist = false; // Show the distances between all the objects
     private boolean showForce = true; // Show the force of the objects
-    private boolean showGrid = true; // Show the force of the objects
+    private boolean showGrid = false; // Show the force of the objects
+    private boolean sortObjsBySize = true; // Show the force of the objects
 
     private boolean askForChangeAmount = false;
 
@@ -61,12 +62,12 @@ public class Main extends PApplet {
         scale(scaleAmount);
         background(255); // Clear, and set the background to white
 
-        if(showGrid) drawGrid();
-
         if(simulationMode)
             runSim();
         else
             runNewObj();
+
+        if(showGrid) drawGrid();
 
     }
 
@@ -74,7 +75,8 @@ public class Main extends PApplet {
         if (key == ' ') {
             System.out.println("Pause / Resume");
             switchMode();
-        } else if(key == SHIFT) {
+        } else if(keyCode == SHIFT) {
+            System.out.println("Off");
             isShiftPressed = false;
         }
     }
@@ -85,12 +87,13 @@ public class Main extends PApplet {
     }
     public void keyPressed() {
 
-        if (key == SHIFT) {
+        if (keyCode == SHIFT) {
+            System.out.println("On");
             isShiftPressed = true;
         } else if( (keyCode == UP || keyCode == DOWN || keyCode == LEFT || keyCode == RIGHT) && (isShiftPressed == false) ) {
             editTranslateAmount(keyCode == UP, keyCode == DOWN, keyCode == LEFT, keyCode == RIGHT);
         } else if( (keyCode == UP || keyCode == DOWN || keyCode == LEFT || keyCode == RIGHT) && (isShiftPressed == true) ) {
-//            editScaleAndSize(keyCode == UP, keyCode == DOWN, keyCode == LEFT, keyCode == RIGHT);
+            editScaleAndSize(keyCode == UP, keyCode == DOWN, keyCode == LEFT, keyCode == RIGHT);
         }
     }
 
@@ -256,6 +259,7 @@ public class Main extends PApplet {
             objs.get(newObjIndx).shouldShow = true;
             newObjStep = -1;
             newObjIndx = -1;
+            sortObjsBySize();
         }
     }
 
@@ -277,7 +281,13 @@ public class Main extends PApplet {
             translateAmount[0] -= transflateSpeedFactor;
         }
     }
-
+    public void editScaleAndSize(boolean up, boolean down, boolean left, boolean right) {
+        if(up) {
+            scaleAmount *= 1.1;
+        } else if(down) {
+            scaleAmount /= 1.1;
+        }
+    }
 
     // ========== Helper Functions ==========
     private double getDist(double x1, double y1, double x2, double y2) {
@@ -318,5 +328,19 @@ public class Main extends PApplet {
 
         addText(0, width/2 - translateAmount[0] - 20, height/2 - translateAmount[1] - 5, "( " + Integer.toString(-translateAmount[0]) + ", " + Integer.toString(-translateAmount[1]) + " )");
         circle(width/2 - translateAmount[0], height/2 - translateAmount[1], 5);
+    }
+    public void sortObjsBySize() {
+        boolean done = false;
+        while(!done) {
+            done = true;
+            for( int i = 0; i < objs.size()-1; i++) {
+                if(objs.get(i).size < objs.get(i+1).size) {
+                    Object a = objs.get(i);
+                    objs.set(i, objs.get(i+1));
+                    objs.set(i+1, a);
+                    done = false;
+                }
+            }
+        }
     }
 }
